@@ -1,8 +1,0 @@
-name: deseq2
-channels:
-  - conda-forge
-  - bioconda
-defaults:
-  - r-base=4.3
-  - bioconductor-deseq2
-  - r-ggplot2
