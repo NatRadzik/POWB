@@ -126,7 +126,7 @@ process FEATURECOUNT {
 
 process VISUALIZE {
     publishDir "output/VISUALIZATION", mode: 'copy'
-    conda 'envs/powb-next.yml'
+    conda 'envs/powb-python.yml'
 
     input:
     	path counts_file 
