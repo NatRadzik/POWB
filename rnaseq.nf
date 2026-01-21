@@ -1,3 +1,5 @@
+// 1 proces - przycinanie odczytów (trimming)
+// usuwa adaptery i słabej jakości końcówki sekwencji, w celu poprawienia jakości mapowania
 
 process TRIM_GALORE {
     publishDir "output/TRIMMED", mode:'copy'
@@ -7,14 +9,21 @@ process TRIM_GALORE {
     	tuple val(sampleid), path(reads)
 
     output:
-        path "*"
-        path "*trimmed*.fq.gz", emit:trimmed
+        path "*" //zwracanie wszystkich plików 
+        path "*trimmed*.fq.gz", emit:trimmed //emitowanie plików .fq.gz do kanału 'trimmed'
 
     script:
         """
+        # -q 20 -> prztnij jeśli Phred < 20
+        # --paired -> tryb dla odczytów sparowanych
+        # --gzip -> kompresja do .gz
+        # --basename -> podstawa nazwy plików wyjściowych
         trim_galore -q 20 --paired -q 20 --gzip --basename ${sampleid}_trimmed ${reads}
         """
 }
+
+// 2 proces - kontrola jakości
+// sprawdza jakość danych surowych i przyciętych oraz generuje raport HTML
 
 process QC{
 
@@ -41,24 +50,25 @@ process QC{
 	    """
 }
 
+// 3 proces - indeksowanie genomu
+
 process STAR_INDEX {
     publishDir "output/INDEX", Mode:'copy'
     conda 'envs/powb-next.yml'
     
     input:
-	    path(fasta) 
-	    path(gtf)   
+	    path(fasta) //sekwencja genomu
+	    path(gtf)   // adnotacja genów
 
     output:
-    	path "*", emit:index
+    	path "*", emit:index // emitowanie do kanału index
 
     script:
 	    """
-	    # Tworzenie indeksu algorytmem STAR:
-	    # --runMode genomeGenerate: Tryb generowania indeksu
-	    # --genomeDir index: Folder wyjściowy
-	    # --sjdbGTFfile: Plik z informacją o intronach/eksonach (GTF)
-	    # --genomeSAindexNbases 12: Parametr optymalizacji (12 jest dobre dla małych genomów)
+	    # --runMode genomeGenerate -> tryb generowania indeksu
+	    # --genomeDir index -> folder wyjściowy
+	    # --sjdbGTFfile -> plik z informacją o intronach/eksonach (GTF)
+	    # --genomeSAindexNbases 12 -> parametr optymalizacji (12 jest dobre dla małych genomów)
 	    STAR --runThreadN 8 \\
 	    --runMode genomeGenerate \\
 	    --genomeDir index \\
@@ -68,10 +78,11 @@ process STAR_INDEX {
 	    """
 }
 
+// 4 proces - mapowanie
+
 process STAR_MAPPING {
     publishDir "output/MAPPING", mode:'copy'
     conda 'envs/powb-next.yml'
-
     cpus params.maxCpus
 
     input: 
@@ -79,14 +90,13 @@ process STAR_MAPPING {
 
     output:
 	    path "*"
-	    path "*.bam", emit:bams
+	    path "*.bam", emit:bams // emitowane plików .bam do kanału bams
 
     script:
 	    """
-	    # Mapowanie odczytów:
-	    # --genomeDir: Ścieżka do indeksu stworzonego w poprzednim kroku
-	    # --outSAMtype BAM SortedByCoordinate: Wynik od razu w formacie BAM, posortowany
-	    # --readFilesCommand zcat: Komenda do czytania skompresowanych plików wejściowych (.gz)
+	    # --genomeDir -> ścieżka do indeksu stworzonego w poprzednim kroku
+	    # --outSAMtype BAM SortedByCoordinate -> wynik od razu w formacie BAM, posortowany
+	    # --readFilesCommand zcat -> komenda do czytania skompresowanych plików wejściowych (.gz)
 	    STAR --runThreadN 4 --genomeDir ${index} \\
 	    --readFilesIn ${read1} ${read2} \\
 	    --outSAMtype BAM SortedByCoordinate \\
@@ -95,6 +105,7 @@ process STAR_MAPPING {
 	    """
 }
 
+// 5 proces - zliczanie odczytów
 
 process FEATURECOUNT {
     publishDir "output/FEATURECOUNT", mode:'copy'
@@ -110,19 +121,20 @@ process FEATURECOUNT {
 
     script:
 	    """
-	    # Zliczanie programem featureCounts:
-	    # -T 8: Użyj 8 wątków
-	    # -p: Licz fragmenty (pary), a nie pojedyncze odczyty
-	    # -t exon: Licz odczyty wpadające w eksony
-	    # -g gene_id: Grupuj wyniki po ID genu
-	    # -Q 10: Ignoruj mapowania o niskiej jakości (<10)
+	    # -T -> liczba wątków
+	    # -p -> licz fragmenty (pary), a nie pojedyncze odczyty
+	    # -t exon -> licz odczyty wpadające w eksony
+	    # -g gene_id -> grupuj wyniki po ID genu
+	    # -Q 10 -> ignoruj mapowania o niskiej jakości (<10)
 	    featureCounts -T 2 -s ${strand} -p --countReadPairs -t exon \\
 	    -g gene_id -Q 10 -a ${gtf} -o gene_count ${bams}
 
-	    # Generuj raport jakości zliczania
+	    # generowanie raportu jakości zliczania
 	    multiqc gene_count*
 	    """
 }
+
+// proces 6 - wizualizacja za pomocą heatmapy
 
 process VISUALIZE {
     publishDir "output/VISUALIZATION", mode: 'copy'
@@ -140,14 +152,16 @@ process VISUALIZE {
 	    """
 }
 
+// 7 proces - analiza różnicowej ekspresji danych
+
 process DIFFERENTIAL_EXPRESSION {
 
     publishDir "output/DIFFERENTIAL_EXPRESSION", mode: 'copy'
     conda 'envs/deseq2.yml' //jeśli nie działa (błąd 'no such command like Rscript') użyć środowiska deseq2_vol2.yml
 
     input:
-        path(counts)
-        path(metadata)
+        path(counts)    //zliczenia
+        path(metadata) //przynależność do kategorii
 
     output:
         path "deseq2_results.tsv"
@@ -159,7 +173,6 @@ process DIFFERENTIAL_EXPRESSION {
         """
 }
 
-// --- GŁÓWNY PRZEPŁYW DANYCH (WORKFLOW) ---
 workflow {
 
     ref_fasta = Channel.fromPath(params.ref_fasta)
@@ -172,7 +185,6 @@ workflow {
 
     TRIM_GALORE(fastq_ch).set{trimmed}
 
-
     raw_fastq = fastq_ch.map{items -> items[1]}.flatten().collect()
     trimmed_fastq = trimmed.trimmed.flatten().collect()
     
@@ -180,23 +192,24 @@ workflow {
 
     STAR_INDEX(ref_fasta, ref_gtf).set{star_index}
 
+    // bierzemy nazwę pliku i ucinamy końcówkę _trimmed aby odzyskać oryginalne ID próbki
     trimmed.trimmed.map{read1, read2 -> tuple("${read1.getFileName()}".split("_trimmed")[0], read1, read2) }
-    | combine(star_index.index) 
-    | STAR_MAPPING              
-    | set{bams}                 
+    | combine(star_index.index) // doklejanie indeksu do każdej próbki
+    | STAR_MAPPING              // uruchamianie procesu mapowania
+    | set{bams}                 // zapisanie w kanale bams
 
     bams.bams.collect().set{finalbams}
 
     fc_results = FEATURECOUNT(finalbams, ref_gtf, strand)
 
     fc_results
-        .flatten()                          
-        .filter { it.name == 'gene_count' }
-        .set { count_table }                
+        .flatten()                          //rozbicie listy plików na pojedyncze elementy
+        .filter { it.name == 'gene_count' } //szukanie pliku o konkretnej nazwie
+        .set { count_table }                //zapisanie do kanału
 
     VISUALIZE(count_table)
     
-    metadata = Channel.fromPath(params.metadata)
+    metadata = Channel.fromPath(params.metadata) //wczytanie informacji na temat przynależności próbki do danej kategorii
 
     DIFFERENTIAL_EXPRESSION(
         count_table,
