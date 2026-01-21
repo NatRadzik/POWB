@@ -32,7 +32,7 @@ colnames(counts) <- gsub(
 colnames(counts) <- gsub("\\.$", "", colnames(counts))
 
 #Wczytanie metadata - co jest kontrolą a co treated
-meta <- read.delim(meta_file, row.names = 1)
+meta <- read.delim(meta_file, header = TRUE, row.names = 1, sep = "", stringsAsFactors = FALSE)
 
 #Sprawdzenie zgodności
 stopifnot(all(colnames(counts) == rownames(meta)))
