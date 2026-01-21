@@ -1,6 +1,7 @@
 
 process TRIM_GALORE {
     publishDir "output/TRIMMED", mode:'copy'
+    conda 'envs/powb-next.yml'
 
     input:
     	tuple val(sampleid), path(reads)
@@ -18,6 +19,7 @@ process TRIM_GALORE {
 process QC{
 
     publishDir "output/QC_REPORT", mode:'copy'
+    conda 'envs/powb-next.yml'
 
     input:
     	path(reads)
@@ -41,6 +43,7 @@ process QC{
 
 process STAR_INDEX {
     publishDir "output/INDEX", Mode:'copy'
+    conda 'envs/powb-next.yml'
     
     input:
 	    path(fasta) 
@@ -67,6 +70,7 @@ process STAR_INDEX {
 
 process STAR_MAPPING {
     publishDir "output/MAPPING", mode:'copy'
+    conda 'envs/powb-next.yml'
 
     cpus params.maxCpus
 
@@ -94,6 +98,7 @@ process STAR_MAPPING {
 
 process FEATURECOUNT {
     publishDir "output/FEATURECOUNT", mode:'copy'
+    conda 'envs/powb-next.yml'
 
     input:
 	    path(bams)   
@@ -121,6 +126,7 @@ process FEATURECOUNT {
 
 process VISUALIZE {
     publishDir "output/VISUALIZATION", mode: 'copy'
+    conda 'envs/powb-next.yml'
 
     input:
     	path counts_file 
