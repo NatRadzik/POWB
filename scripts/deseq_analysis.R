@@ -61,14 +61,17 @@ write.table(
 )
 
 #Volcano plot
+res_df$significant <- with(res_df, ifelse(!is.na(padj) & padj <= 0.05 & abs(log2FoldChange) >= 1, "yes", "no"))
+
 png("volcano_plot.png", width = 800, height = 600)
 
-ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj))) +
+ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
   geom_point(alpha = 0.6) +
+  scale_color_manual(values = c("no" = "black", "yes" = "magenta")) +
   geom_vline(xintercept = c(-1, 1), linetype = "dashed") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
   theme_minimal() +
-  labs(title = "Differential gene expression (DESeq2)")
+  labs(title = "Differential gene expression (DESeq2)", color = "Significant")
 
 dev.off()
 
