@@ -143,7 +143,7 @@ process VISUALIZE {
 process DIFFERENTIAL_EXPRESSION {
 
     publishDir "output/DIFFERENTIAL_EXPRESSION", mode: 'copy'
-    conda 'envs/deseq2.yml'
+    conda 'envs/deseq2.yml' //jeśli nie działa (błąd 'no such command like Rscript') użyć środowiska deseq2_vol2.yml
 
     input:
         path(counts)
@@ -153,7 +153,7 @@ process DIFFERENTIAL_EXPRESSION {
         path "deseq2_results.tsv"
         path "*.png"
 
-    script:
+    script: //jak ma problemy bo nie widzi pliku - sprawdzić uprawnienia lub/i dać pełną ścieżkę do pliku
         """
         Rscript scripts/deseq2_analysis.R ${counts} ${metadata}
         """
@@ -194,7 +194,7 @@ workflow {
         .filter { it.name == 'gene_count' }
         .set { count_table }                
 
-    //VISUALIZE(count_table)
+    VISUALIZE(count_table)
     
     metadata = Channel.fromPath(params.metadata)
 
