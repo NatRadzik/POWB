@@ -31,8 +31,9 @@ colnames(counts) <- gsub(
 )
 colnames(counts) <- gsub("\\.$", "", colnames(counts))
 
-#Wczytanie metadata - co jest kontrolą a co treated
+#Wczytanie metadata - co jest kontrolą a co treated plus uporządkowanie
 meta <- read.delim(meta_file, header = TRUE, row.names = 1, sep = "", stringsAsFactors = FALSE)
+meta <- meta[colnames(counts), , drop = FALSE]
 
 #Sprawdzenie zgodności
 stopifnot(all(colnames(counts) == rownames(meta)))
