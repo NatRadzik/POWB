@@ -164,7 +164,7 @@ process DIFFERENTIAL_EXPRESSION {
         path(metadata) //przynależność do kategorii
 
     output:
-        path "deseq2_results.tsv"
+        path "deseq2_results.tsv", emit: deseq_results
         path "*.png"
 
     script: //jak ma problemy bo nie widzi pliku - sprawdzić uprawnienia lub/i dać pełną ścieżkę do pliku
@@ -172,6 +172,27 @@ process DIFFERENTIAL_EXPRESSION {
         deseq2_analysis.R ${counts} ${metadata}
         """
 }
+
+// porces 
+
+process FUNCTIONAL_ENRICHMENT {
+
+    publishDir "output/FUNCTIONAL_ENRICHMENT", mode: 'copy'
+    conda 'envs/clusterprofiler.yml'
+
+    input:
+        path(deseq_results)
+
+    output:
+        path "*.tsv"
+        path "*.png"
+
+    script:
+        """
+        functional_enrichment.R ${deseq_results}
+        """
+}
+
 
 workflow {
 
@@ -208,12 +229,16 @@ workflow {
         .set { count_table }                //zapisanie do kanału
 
     VISUALIZE(count_table)
-    
+
     metadata = channel.fromPath(params.metadata) //wczytanie informacji na temat przynależności próbki do danej kategorii
 
-    DIFFERENTIAL_EXPRESSION(
+    de_results = DIFFERENTIAL_EXPRESSION(
         count_table,
         metadata
+    )
+
+    FUNCTIONAL_ENRICHMENT(
+        de_results.deseq_results
     )
 
 }

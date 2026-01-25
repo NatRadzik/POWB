@@ -1,0 +1,13 @@
+name: clusterprofiler
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base
+  - bioconductor-clusterprofiler
+  - bioconductor-enrichplot
+  - bioconductor-org.hs.eg.db
+  - r-dplyr
+  - r-readr
+  - r-ggplot2
+  - r-ggridges

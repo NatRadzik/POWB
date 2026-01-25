@@ -18,7 +18,7 @@ counts <- read.delim(
 )
 
 #GeneID jako rownames
-rownames(counts) <- counts$GeneID
+rownames(counts) <- counts$Geneid
 
 #Usunięcie kolumn technicznych
 counts <- counts[, -(1:6)]
