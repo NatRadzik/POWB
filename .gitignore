@@ -1,0 +1,4 @@
+fastq
+ref
+work
+.nextflow*.log

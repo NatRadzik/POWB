@@ -148,7 +148,7 @@ process VISUALIZE {
 
     script:
 	    """
-	    scripts/make_heatmap.py ${counts_file}
+	    make_heatmap.py ${counts_file}
 	    """
 }
 
@@ -169,19 +169,19 @@ process DIFFERENTIAL_EXPRESSION {
 
     script: //jak ma problemy bo nie widzi pliku - sprawdzić uprawnienia lub/i dać pełną ścieżkę do pliku
         """
-        Rscript scripts/deseq2_analysis.R ${counts} ${metadata}
+        deseq2_analysis.R ${counts} ${metadata}
         """
 }
 
 workflow {
 
-    ref_fasta = Channel.fromPath(params.ref_fasta)
-    ref_gtf   = Channel.fromPath(params.ref_gtf)
+    ref_fasta = channel.fromPath(params.ref_fasta)
+    ref_gtf   = channel.fromPath(params.ref_gtf)
     
     // Wczytuje pary plików (np. sample_1.fq i sample_2.fq) i tworzy z nich krotki
-    fastq_ch  = Channel.fromFilePairs(params.reads)
+    fastq_ch  = channel.fromFilePairs(params.reads)
     
-    strand    = Channel.of(params.strand)
+    strand    = channel.of(params.strand)
 
     TRIM_GALORE(fastq_ch).set{trimmed}
 
@@ -209,7 +209,7 @@ workflow {
 
     VISUALIZE(count_table)
     
-    metadata = Channel.fromPath(params.metadata) //wczytanie informacji na temat przynależności próbki do danej kategorii
+    metadata = channel.fromPath(params.metadata) //wczytanie informacji na temat przynależności próbki do danej kategorii
 
     DIFFERENTIAL_EXPRESSION(
         count_table,
