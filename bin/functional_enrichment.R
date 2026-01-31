@@ -12,15 +12,13 @@ suppressPackageStartupMessages({
   library(readr)
 })
 
-# =========================
-# ARGUMENTS
-# =========================
+#parse argument
 args <- commandArgs(trailingOnly = TRUE)
 deseq_file <- args[1]
+pval_treshold <- args[2]
+logfc_treshold <- args[3]
 
-# =========================
-# LOAD DATA
-# =========================
+#load df
 res <- read_tsv(deseq_file)
 
 # Zmień nazwę kolumny z genami, jeśli trzeba
@@ -29,15 +27,16 @@ gene_col <- if ("gene" %in% colnames(res)) "gene" else "gene_id"
 res <- res %>%
   filter(!is.na(padj), !is.na(log2FoldChange))
 
-# =========================
-# ID CONVERSION (ENSEMBL → ENTREZ)
-# =========================
+
+#ID CONVERSION
+# We have Refseq Id like ("NM_033031") and want to have gene name
 gene_map <- bitr(
   res[[gene_col]],
   fromType = "REFSEQ",
   toType   = c("ENTREZID", "SYMBOL"),
   OrgDb    = org.Hs.eg.db
 )
+print(gene_map)
 
 
 res <- res %>%
@@ -48,7 +47,7 @@ res <- res %>%
 # DIFFERENTIALLY EXPRESSED GENES
 # =========================
 deg <- res %>%
-  filter(padj < 0.05 & abs(log2FoldChange) > 1)
+  filter(padj < pval_treshold & abs(log2FoldChange) > logfc_treshold)
 
 deg_ids <- deg$ENTREZID
 
@@ -111,8 +110,3 @@ write_tsv(as.data.frame(gsea_go), "GSEA_GO_BP.tsv")
 png("GSEA_GO_BP.png", width = 2000, height = 1600, res = 300)
 ridgeplot(gsea_go) + ggtitle("GSEA GO BP")
 dev.off()
-
-# =========================
-# DONE
-# =========================
-message("Functional enrichment analysis finished successfully.")

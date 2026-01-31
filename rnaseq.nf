@@ -162,26 +162,31 @@ process DIFFERENTIAL_EXPRESSION {
     input:
         path(counts)    //zliczenia
         path(metadata) //przynależność do kategorii
+        val(pval)
+        val(logfc)
 
     output:
         path "deseq2_results.tsv", emit: deseq_results
+        path "deseq2_results_significant.tsv", emit: deseq_results_significant
         path "*.png"
 
     script: //jak ma problemy bo nie widzi pliku - sprawdzić uprawnienia lub/i dać pełną ścieżkę do pliku
         """
-        deseq2_analysis.R ${counts} ${metadata}
+        deseq2_analysis.R ${counts} ${metadata} ${pval} ${logfc}
         """
 }
 
 // porces 
 
 process FUNCTIONAL_ENRICHMENT {
-
+    errorStrategy 'ignore'
     publishDir "output/FUNCTIONAL_ENRICHMENT", mode: 'copy'
     conda 'envs/clusterprofiler.yml'
 
     input:
         path(deseq_results)
+        val(pval)
+        val(logFC)
 
     output:
         path "*.tsv"
@@ -189,7 +194,7 @@ process FUNCTIONAL_ENRICHMENT {
 
     script:
         """
-        functional_enrichment.R ${deseq_results}
+        functional_enrichment.R ${deseq_results} ${pval} ${logFC} 
         """
 }
 
@@ -202,7 +207,10 @@ workflow {
     // Wczytuje pary plików (np. sample_1.fq i sample_2.fq) i tworzy z nich krotki
     fastq_ch  = channel.fromFilePairs(params.reads)
     
+    //Wczytaj zmienne
     strand    = channel.of(params.strand)
+    pval    = channel.of(params.pval)
+    logfc    = channel.of(params.logFC)
 
     TRIM_GALORE(fastq_ch).set{trimmed}
 
@@ -234,11 +242,13 @@ workflow {
 
     de_results = DIFFERENTIAL_EXPRESSION(
         count_table,
-        metadata
+        metadata,
+        pval,
+        logfc
     )
 
     FUNCTIONAL_ENRICHMENT(
-        de_results.deseq_results
+        de_results.deseq_results_significant, pval, logfc   
     )
 
 }
