@@ -1,8 +1,5 @@
 #!/usr/bin/env Rscript
 
-# =========================
-# LIBRARIES
-# =========================
 suppressPackageStartupMessages({
   library(clusterProfiler)
   library(org.Hs.eg.db)
@@ -12,48 +9,48 @@ suppressPackageStartupMessages({
   library(readr)
 })
 
-#parse argument
+#parsowanie argumentów
 args <- commandArgs(trailingOnly = TRUE)
 deseq_file <- args[1]
-pval_treshold <- args[2]
-logfc_treshold <- args[3]
+pval_threshold  <- as.numeric(args[2])
+logfc_threshold <- as.numeric(args[3])
 
-#load df
+#wczytaj wyniki
 res <- read_tsv(deseq_file)
 
-# Zmień nazwę kolumny z genami, jeśli trzeba
-gene_col <- if ("gene" %in% colnames(res)) "gene" else "gene_id"
-
-res <- res %>%
-  filter(!is.na(padj), !is.na(log2FoldChange))
+# Nazwy kolumn się upweniam
+stopifnot(all(c("padj", "log2FoldChange", "gene") %in% colnames(res)))
 
 
 #ID CONVERSION
-# We have Refseq Id like ("NM_033031") and want to have gene name
+# Mamy Refseq Id ("NM_033031") checmy mieć nazwy "ENTREZID"
 gene_map <- bitr(
-  res[[gene_col]],
+  unique(res$gene),
   fromType = "REFSEQ",
   toType   = c("ENTREZID", "SYMBOL"),
   OrgDb    = org.Hs.eg.db
 )
-print(gene_map)
 
-
+# JOin z mapowaniem
 res <- res %>%
   inner_join(gene_map, by = c("gene" = "REFSEQ"))
 
+message("Liczba genów po mapowaniu: ", nrow(res))
 
-# =========================
-# DIFFERENTIALLY EXPRESSED GENES
-# =========================
+
+#Filtrowanie DEG
 deg <- res %>%
-  filter(padj < pval_treshold & abs(log2FoldChange) > logfc_treshold)
+  filter(
+    padj < pval_threshold,
+    abs(log2FoldChange) > logfc_threshold
+  )
 
-deg_ids <- deg$ENTREZID
+deg_ids <- unique(deg$ENTREZID)
+message("Liczba DEG po mapowaniu: ", length(deg_ids))
 
-# =========================
 # GO ENRICHMENT (BP)
-# =========================
+if (length(deg_ids) >= 20) {
+
 ego <- enrichGO(
   gene          = deg_ids,
   OrgDb         = org.Hs.eg.db,
@@ -70,9 +67,7 @@ png("GO_BP_dotplot.png", width = 2000, height = 1600, res = 300)
 dotplot(ego, showCategory = 20) + ggtitle("GO Biological Process")
 dev.off()
 
-# =========================
 # KEGG ENRICHMENT
-# =========================
 ekk <- enrichKEGG(
   gene         = deg_ids,
   organism     = "hsa",
@@ -84,18 +79,22 @@ write_tsv(as.data.frame(ekk), "KEGG_enrichment.tsv")
 png("KEGG_dotplot.png", width = 2000, height = 1600, res = 300)
 dotplot(ekk, showCategory = 20) + ggtitle("KEGG Pathways")
 dev.off()
+}
 
-# -------------------------------
-# REMOVE DUPLICATE ENTREZ IDS
-# -------------------------------
+
+#GSEA
+
+# Entrez usuń duplikaty
 res_unique <- res %>%
-  group_by(ENTREZID) %>%
-  slice_max(order_by = abs(log2FoldChange), n = 1) %>%
-  ungroup()
+  arrange(desc(abs(log2FoldChange))) %>%
+  distinct(ENTREZID, .keep_all = TRUE)
 
+
+#Przygotowanie danych
 gene_list <- res_unique$log2FoldChange
 names(gene_list) <- res_unique$ENTREZID
 gene_list <- sort(gene_list, decreasing = TRUE)
+
 
 gsea_go <- gseGO(
   geneList     = gene_list,

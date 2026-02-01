@@ -248,7 +248,7 @@ workflow {
     )
 
     FUNCTIONAL_ENRICHMENT(
-        de_results.deseq_results_significant, pval, logfc   
+        de_results.deseq_results, pval, logfc   
     )
 
 }

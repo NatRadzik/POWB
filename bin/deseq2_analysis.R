@@ -56,11 +56,11 @@ res_df <- as.data.frame(res)
 res_df$gene <- rownames(res_df)
 
 
-#Volcano plot
+
 res_df$significant <- with(res_df, ifelse(!is.na(padj) & padj <= pval_threshold & abs(log2FoldChange) >= logfc_threshold, "yes", "no"))
 
 
-#Write table with all
+#Wszystkie
 write.table(
   res_df,
   "deseq2_results.tsv",
@@ -82,7 +82,7 @@ write.table(
   row.names = FALSE
 )
 
-
+#Volcano plot
 png("volcano_plot.png", width = 800, height = 600)
 
 ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
