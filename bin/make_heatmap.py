@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def main():
+    #Sprawdzenie czy podano plik wejściowy w argumentach komendy
     if len(sys.argv) < 2:
         print("Uzycie: make_heatmap.py <plik_gene_count>")
         sys.exit(1)
@@ -13,46 +14,50 @@ def main():
     input_file = sys.argv[1]
     output_file = "heatmap_genes.png"
 
-    # 1. Wczytanie (FeatureCounts ma nagłówek z #, pomijamy go, ale zachowujemy nazwy kolumn)
-    # Zazwyczaj drugi wiersz to nagłówki
+    #Wczytanie danych z tabeli featureCounts
+    #Parametr comment wyklucza linie zaczynające się od płatka
+    #index_col ustawia pierwszą kolumnę z nazwami genów jako identyfikatory wierszy
     try:
         df = pd.read_csv(input_file, sep="\t", comment="#", index_col=0)
     except Exception as e:
         print(f"Blad wczytywania: {e}")
         sys.exit(1)
 
-    # 2. Usuwamy kolumny techniczne (FeatureCounts zawsze je dodaje)
+    #Czyszczenie tabeli z informacji dodatkowych o lokalizacji genów
+    #Zostawia tylko kolumny z liczbą odczytów dla poszczególnych próbek
     cols_to_drop = ['Chr', 'Start', 'End', 'Strand', 'Length']
-    # Usuwamy tylko te, które faktycznie istnieją w pliku
     df_counts = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors='ignore')
 
-    # 3. Wybieramy TOP 30 genów o największej ekspresji
-    # Żeby wykres był czytelny
+    # Sprawdzenie czy po filtrowaniu w tabeli zostały jakiekolwiek dane
     if df_counts.empty:
         print("Pusta tabela zliczen!")
         sys.exit(1)
 
-    # Sumujemy wiersze i bierzemy 30 największych
+    #Wybór 30 genów o najwyższej sumarycznej ekspresji we wszystkich próbkach
     top_genes = df_counts.sum(axis=1).nlargest(30).index
     df_plot = df_counts.loc[top_genes]
 
-    # 4. Logarytmizacja (log2(x+1)) dla lepszej skali kolorów
+    #Transformacja logarytmiczna danych wzorem log x plus 1
+    #Zapobiega to dominacji wykresu przez pojedyncze geny o bardzo wysokich wartościach
     df_log = np.log1p(df_plot)
 
-    # 5. Rysowanie
+    #Ustawienie rozmiaru pola wykresu
     plt.figure(figsize=(10, 12))
     
-    # Jeśli mamy więcej niż 1 próbkę -> robimy klastrowanie (drzewko)
+    #Wybór typu wykresu zależnie od liczby analizowanych próbek
     if df_log.shape[1] > 1:
+        #Jeśli próbek jest więcej niż jedna stosujemy klastrowanie hierarchiczne
+        #clustermap rysuje heatmapę oraz drzewka podobieństwa genów i próbek
         g = sns.clustermap(df_log, cmap="viridis", annot=True, fmt=".1f", figsize=(12, 12))
         plt.title("Top 30 Genes (Log Scale)")
         g.savefig(output_file)
     else:
-        # Jak jest 1 próbka, clustermap nie zadziała, robimy zwykłą heatmapę
+        #Dla pojedynczej próbki rysuje zwykłą mapę ciepła bez drzewek podobieństwa
         sns.heatmap(df_log, cmap="viridis", annot=True, fmt=".1f")
         plt.title("Top 30 Genes (Log Scale)")
         plt.savefig(output_file)
 
+    #Informacja zwrotna o pomyślnym zakończeniu generowania obrazu
     print(f"Wygenerowano: {output_file}")
 
 if __name__ == "__main__":
