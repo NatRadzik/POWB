@@ -176,7 +176,7 @@ process DIFFERENTIAL_EXPRESSION {
         """
 }
 
-// porces 
+// 8 proces - pathway enrichment analysis
 
 process FUNCTIONAL_ENRICHMENT {
     errorStrategy 'ignore'
