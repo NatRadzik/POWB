@@ -1,6 +1,6 @@
 Final project done for the course "Computetional pipelines in Bioinfromatics".
 
-Project is using data from this publication: ...
+Project is using data from this publication: https://pmc.ncbi.nlm.nih.gov/articles/PMC5032908/
 These are genes from the human X chromosome from 2 populations - from the UK and Nigeria. 
 
 Pipeline outline:
